@@ -8,9 +8,9 @@
             "name": "Python: filter_log_no_gps",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/filter_log_no_gps.py",
+            "program": "${workspaceFolder}/filter_log_no_gnss.py",
             "console": "integratedTerminal",
-            "args": ["flight_log.bin", "output_log.bin"]
+            "args": ["paku-FFT-On.bin"]
         }
     ]
 }
