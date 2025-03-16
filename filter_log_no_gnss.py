@@ -1,7 +1,21 @@
 #!/usr/bin/env python3
 
+# This work is licensed under the Creative Commons Attribution 4.0 International License (CC BY 4.0).
+# To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+#
+# You are free to:
+# - Share: copy and redistribute the material in any medium or format.
+# - Adapt: remix, transform, and build upon the material for any purpose, even commercially.
+#
+# Under the following terms:
+# - Attribution: You must give appropriate credit, provide a link to the license, and indicate if changes were made.
+#
+# Author: Paku
+# Date: March 2025
+
 import os
 import sys
+from collections import defaultdict
 from pymavlink import mavutil
 from pymavlink.dialects.v20 import ardupilotmega
 
@@ -14,18 +28,16 @@ def has_gps_location(message):
     """
     # Define message types that typically contain GNSS location data
     gps_messages = {
-        'GNSS',          # Raw GNSS data (latitude, longitude, altitude, etc.)
-        # Global position (lat, lon, alt in fixed-point)
+        'GPS',
+        'POS',
+        'ORGN',
+        'TERR',
+        'AHR2',
+        'EAHR',
+        'MISSION_ITEM',
         'GLOBAL_POSITION_INT',
-        'POSITION',     # Position estimates (can include GNSS-derived data)
-        'POS',          # Position estimates (can include GNSS-derived data)
-        'ORGN',         # Position estimates (can include GNSS-derived data)
-        'TERR',         # Position estimates (can include GNSS-derived data)
-        'AHR2',         # Position estimates (can include GNSS-derived data)
-        'EAHR',         # Position estimates (can include GNSS-derived data)
-        # Navigation output (may include GNSS-based waypoints)
+        'POSITION',
         'NAV_CONTROLLER_OUTPUT',
-        'MISSION_ITEM',  # Mission waypoints (includes GNSS coords if set)
     }
 
     # Get message type from the message name
@@ -101,6 +113,8 @@ def filter_log_without_gps(input_file, output_file=None):
         msg_count = 0
         removed_count = 0
         passed_count = 0
+        msg_type_counts_passed = defaultdict(int)
+        msg_type_counts_removed = defaultdict(int)
 
         # Process each message in the log
         while True:
@@ -111,28 +125,35 @@ def filter_log_without_gps(input_file, output_file=None):
             msg_count += 1
             msg_type = msg.get_type()
 
-            # Skip PARM messages during packing (not relevant for GNSS filtering)
-            # if msg_type == 'PARM':
-            #     continue
-
             if not has_gps_location(msg):
                 # Convert DFMessage to MAVLink_message and pack it
                 try:
                     outfile.write(msg.get_msgbuf())
                     passed_count += 1
+                    msg_type_counts_passed[msg_type] += 1
                 except Exception as e:
                     print(f"Error message {msg_type}: {e}")
                     continue
             else:
                 removed_count += 1
+                msg_type_counts_removed[msg_type] += 1
                 print(
                     f"{removed_count}:\tRemoved message {msg_type} with GNSS location data.")
 
-        print(f"Processed {msg_count} total messages.")
+        print(f"\nProcessed {msg_count} total messages.")
         print(f"Removed {removed_count} entries with GNSS location data.")
         print(f"Passed {passed_count} entries without GNSS location data.")
         print(
             f"Saved {passed_count} non-GNSS location entries to {output_file}.")
+
+        # Print per message type statistics
+        print("\nMessage type statistics (passed):")
+        for msg_type, count in sorted(msg_type_counts_passed.items(), key=lambda item: item[1], reverse=True):
+            print(f"{msg_type}: {count}")
+
+        print("\nMessage type statistics (removed):")
+        for msg_type, count in sorted(msg_type_counts_removed.items(), key=lambda item: item[1], reverse=True):
+            print(f"{msg_type}: {count}")
 
 
 def main():
